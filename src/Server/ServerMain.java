@@ -6,6 +6,7 @@ import Common.OperationType;
 
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.net.InetSocketAddress;
 
 public class ServerMain {
     private DatagramSocket socket;
@@ -16,7 +17,7 @@ public class ServerMain {
 
     public ServerMain(int port, boolean atMostOnce) throws Exception {
         try {
-            this.socket = new DatagramSocket(port);
+            this.socket = new DatagramSocket(new InetSocketAddress("0.0.0.0", port));
         } catch (java.net.BindException e) {
             System.err.println("错误: 端口 " + port + " 已被占用。请检查是否有其他服务器实例正在运行。");
             throw e;

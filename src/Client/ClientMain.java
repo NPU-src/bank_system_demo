@@ -205,13 +205,13 @@ public class ClientMain {
 
     public static void main(String[] args) throws Exception {
         Scanner scanner = new Scanner(System.in);
-        System.out.print("请输入服务器 IP 地址 (默认 127.0.0.1, 直接按回车使用默认值): ");
+        System.out.print("请输入服务器 IP 地址 (默认 192.168.1.75, 局域网请输入服务器实际IP如 192.168.1.100，直接按回车使用默认值): ");
         String host = scanner.nextLine().trim();
         if (host.isEmpty()) {
-            host = "127.0.0.1";
+            host = "192.168.1.75";
         } else if (host.equals("9800")) {
-            System.out.println("检测到输入了端口号 9800，已自动更正为 127.0.0.1");
-            host = "127.0.0.1";
+            System.out.println("检测到输入了端口号 9800，已自动更正为 192.168.1.75");
+            host = "192.168.1.75";
         }
         
         System.out.println("正在初始化网络层 (" + host + ":9800) ...");
