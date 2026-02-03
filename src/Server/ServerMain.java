@@ -13,6 +13,7 @@ public class ServerMain {
     private final RequestHistory history;
     private final CallbackManager callbackManager;
     private final boolean atMostOnce;
+    private static final double LOSS_RATE = 0.3; // [模拟丢包] 30% 丢包率
 
     public ServerMain(int port, boolean atMostOnce) throws Exception {
         try {
@@ -96,19 +97,29 @@ public class ServerMain {
                                 }
                                 case DEPOSIT: {
                                     int accNum = Marshaller.unmarshalInt(receiveBuf, 8);
-                                    String password = Marshaller.unmarshalString(receiveBuf, 12);
-                                    int offset = 12 + Marshaller.getStringEncodedLength(password);
+                                    String name = Marshaller.unmarshalString(receiveBuf, 12);
+                                    int offset = 12 + Marshaller.getStringEncodedLength(name);
+                                    String password = Marshaller.unmarshalString(receiveBuf, offset);
+                                    offset += Marshaller.getStringEncodedLength(password);
+                                    int currencyIdx = Marshaller.unmarshalInt(receiveBuf, offset);
+                                    offset += 4;
                                     double amount = Marshaller.unmarshalDouble(receiveBuf, offset);
-                                    responseStr = store.deposit(accNum, password, amount);
+                                    
+                                    responseStr = store.deposit(accNum, name, password, CurrencyType.fromInt(currencyIdx), amount);
                                     if (responseStr.startsWith("成功")) isUpdate = true;
                                     break;
                                 }
                                 case WITHDRAW: {
                                     int accNum = Marshaller.unmarshalInt(receiveBuf, 8);
-                                    String password = Marshaller.unmarshalString(receiveBuf, 12);
-                                    int offset = 12 + Marshaller.getStringEncodedLength(password);
+                                    String name = Marshaller.unmarshalString(receiveBuf, 12);
+                                    int offset = 12 + Marshaller.getStringEncodedLength(name);
+                                    String password = Marshaller.unmarshalString(receiveBuf, offset);
+                                    offset += Marshaller.getStringEncodedLength(password);
+                                    int currencyIdx = Marshaller.unmarshalInt(receiveBuf, offset);
+                                    offset += 4;
                                     double amount = Marshaller.unmarshalDouble(receiveBuf, offset);
-                                    responseStr = store.withdraw(accNum, password, amount);
+                                    
+                                    responseStr = store.withdraw(accNum, name, password, CurrencyType.fromInt(currencyIdx), amount);
                                     if (responseStr.startsWith("成功")) isUpdate = true;
                                     break;
                                 }
@@ -159,8 +170,14 @@ public class ServerMain {
                 System.arraycopy(responseBytes, 0, actualResponse, 0, totalLen);
 
                 if (atMostOnce) history.saveResponse(clientKey, reqId, actualResponse);
-                socket.send(new DatagramPacket(actualResponse, actualResponse.length, requestPacket.getAddress(), requestPacket.getPort()));
-                System.out.println("[Reply] Sent to " + clientKey + " ID: " + reqId + ": " + responseStr);
+
+                // [模拟丢包] 随机决定是否真正发送回复
+                if (Math.random() < LOSS_RATE) {
+                    System.out.println("   [模拟丢包] 响应包已在服务器被丢弃 (ReqID:" + reqId + ")");
+                } else {
+                    socket.send(new DatagramPacket(actualResponse, actualResponse.length, requestPacket.getAddress(), requestPacket.getPort()));
+                    System.out.println("[Reply] Sent to " + clientKey + " ID: " + reqId + ": " + responseStr);
+                }
 
             } catch (Exception e) {
                 System.err.println("服务器运行错误: " + e.getMessage());
@@ -171,14 +188,28 @@ public class ServerMain {
     }
 
     public static void main(String[] args) throws Exception {
+        int port = 9800;
         boolean amo = true;
-        if (args.length > 0 && args[0].equalsIgnoreCase("ALO")) {
-            amo = false;
+
+        // 参数解析: [Port] [ALO]
+        if (args.length > 0) {
+            try {
+                port = Integer.parseInt(args[0]);
+            } catch (NumberFormatException e) {
+                // 如果第一个参数不是数字，检查是不是 ALO/AMO
+                if (args[0].equalsIgnoreCase("ALO")) amo = false;
+                else if (args[0].equalsIgnoreCase("AMO")) amo = true;
+                else System.err.println("警告: 无法识别的参数 '" + args[0] + "'，使用默认端口 9800");
+            }
         }
-        System.out.println("使用说明: java Server.ServerMain [ALO]");
-        System.out.println("   ALO: 使用 At-Least-Once 语义");
-        System.out.println("   默认: 使用 At-Most-Once 语义");
+
+        if (args.length > 1) {
+            if (args[1].equalsIgnoreCase("ALO")) amo = false;
+            else if (args[1].equalsIgnoreCase("AMO")) amo = true;
+        }
+
+        System.out.println("使用说明: java Server.ServerMain [Port] [ALO]");
         
-        new ServerMain(9800, amo).start();
+        new ServerMain(port, amo).start();
     }
 }

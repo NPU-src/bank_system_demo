@@ -93,10 +93,19 @@ public class ClientMain {
                     Marshaller.marshalInt(accNum, requestBuffer, offset);
                     offset += 4;
                     
+                    System.out.print("输入姓名: ");
+                    name = scanner.next();
+                    offset += Marshaller.marshalString(name, requestBuffer, offset);
+
                     System.out.print("输入密码: ");
                     password = scanner.next();
                     offset += Marshaller.marshalString(password, requestBuffer, offset);
                     
+                    System.out.print("选择货币类型 (0=SGD, 1=USD, 2=EUR, 3=CNY, 4=HKD): ");
+                    currencyIdx = scanner.nextInt();
+                    Marshaller.marshalInt(currencyIdx, requestBuffer, offset);
+                    offset += 4;
+
                     System.out.print("输入存款金额: ");
                     double depositAmount = scanner.nextDouble();
                     Marshaller.marshalDouble(depositAmount, requestBuffer, offset);
@@ -109,10 +118,19 @@ public class ClientMain {
                     Marshaller.marshalInt(accNum, requestBuffer, offset);
                     offset += 4;
                     
+                    System.out.print("输入姓名: ");
+                    name = scanner.next();
+                    offset += Marshaller.marshalString(name, requestBuffer, offset);
+
                     System.out.print("输入密码: ");
                     password = scanner.next();
                     offset += Marshaller.marshalString(password, requestBuffer, offset);
                     
+                    System.out.print("选择货币类型 (0=SGD, 1=USD, 2=EUR, 3=CNY, 4=HKD): ");
+                    currencyIdx = scanner.nextInt();
+                    Marshaller.marshalInt(currencyIdx, requestBuffer, offset);
+                    offset += 4;
+
                     System.out.print("输入取款金额: ");
                     double withdrawAmount = scanner.nextDouble();
                     Marshaller.marshalDouble(withdrawAmount, requestBuffer, offset);
@@ -205,19 +223,45 @@ public class ClientMain {
 
     public static void main(String[] args) throws Exception {
         Scanner scanner = new Scanner(System.in);
-        System.out.print("请输入服务器 IP 地址 (默认 127.0.0.1, 直接按回车使用默认值): ");
-        String host = scanner.nextLine().trim();
-        if (host.isEmpty()) {
-            host = "127.0.0.1";
-        } else if (host.equals("9800")) {
-            System.out.println("检测到输入了端口号 9800，已自动更正为 127.0.0.1");
-            host = "127.0.0.1";
+        String host = "127.0.0.1";
+        int port = 9800;
+
+        // 1. 尝试从命令行参数读取
+        if (args.length >= 1) {
+            host = args[0];
+            if (args.length >= 2) {
+                try {
+                    port = Integer.parseInt(args[1]);
+                } catch (NumberFormatException e) {
+                    System.err.println("错误: 端口号必须是整数。使用默认 9800");
+                }
+            }
+            System.out.println("从命令行参数加载配置: " + host + ":" + port);
+        } else {
+            // 2. 交互式输入
+            System.out.print("请输入服务器 IP 地址 (默认 127.0.0.1): ");
+            String inputHost = scanner.nextLine().trim();
+            if (!inputHost.isEmpty()) host = inputHost;
+
+            System.out.print("请输入服务器端口 (默认 9800): ");
+            String inputPort = scanner.nextLine().trim();
+            if (!inputPort.isEmpty()) {
+                try {
+                    port = Integer.parseInt(inputPort);
+                } catch (Exception e) {
+                    System.out.println("输入无效，使用默认端口 9800");
+                }
+            }
         }
         
-        System.out.println("正在初始化网络层 (" + host + ":9800) ...");
-        CommunicationLayer comLayer = new CommunicationLayer(host, 9800);
+        System.out.println("正在初始化网络层 (" + host + ":" + port + ") ...");
+        CommunicationLayer comLayer = new CommunicationLayer(host, port);
         
         System.out.print("是否进行连接测试? (y/N): ");
+        if (args.length == 0) { // 仅在未提供参数（交互模式）时询问，或始终询问？为了方便自动化测试，如果提供了参数，我们可以尝试直接 ping 或跳过等待
+            // 这里保留询问逻辑，但为了方便，如果直接回车也行
+        }
+        
         String testChoice = scanner.nextLine().trim();
         if (testChoice.equalsIgnoreCase("y")) {
             System.out.println("正在测试与服务器的连接...");

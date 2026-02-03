@@ -12,6 +12,7 @@ public class CommunicationLayer {
     private final int serverPort;
     private static final int TIMEOUT = 2000; // 2秒超时
     private static final int MAX_RETRIES = 3; // 最大重试次数
+    private static final double LOSS_RATE = 0.3; // [模拟丢包] 30% 丢包率
 
     public CommunicationLayer(String host, int port) throws Exception {
         this.socket = new DatagramSocket();
@@ -58,7 +59,14 @@ public class CommunicationLayer {
                 // 2. 发送请求
                 DatagramPacket sendPacket = new DatagramPacket(
                         requestData, requestData.length, serverAddress, serverPort);
-                socket.send(sendPacket);
+                
+                // [模拟丢包] 随机决定是否真正发送请求包
+                if (Math.random() < LOSS_RATE) {
+                    System.out.println("   [模拟丢包] 请求包已在客户端被丢弃 (ID:" + expectedId + ")");
+                    // 不执行 socket.send，直接让其进入超时
+                } else {
+                    socket.send(sendPacket);
+                }
 
                 // 3. 循环接收，直到收到匹配的 ID 或超时
                 long startTime = System.currentTimeMillis();
