@@ -28,17 +28,23 @@ public class BankStore {
         return "成功: 账户已关闭";
     }
 
-    public synchronized String deposit(int accNum, String password, double amount) {
+    public synchronized String deposit(int accNum, String name, String password, CurrencyType currency, double amount) {
         Account acc = accounts.get(accNum);
-        if (acc == null || !acc.getPassword().equals(password)) return "错误: 验证失败";
+        if (acc == null) return "错误: 账户不存在";
+        if (!acc.getName().equals(name) || !acc.getPassword().equals(password)) return "错误: 身份验证失败";
+        if (acc.getCurrency() != currency) return "错误: 货币类型不匹配";
+        
         acc.setBalance(acc.getBalance() + amount);
         return String.format("成功: 存款完成。新余额为: %.2f", acc.getBalance());
     }
 
-    public synchronized String withdraw(int accNum, String password, double amount) {
+    public synchronized String withdraw(int accNum, String name, String password, CurrencyType currency, double amount) {
         Account acc = accounts.get(accNum);
-        if (acc == null || !acc.getPassword().equals(password)) return "错误: 验证失败";
+        if (acc == null) return "错误: 账户不存在";
+        if (!acc.getName().equals(name) || !acc.getPassword().equals(password)) return "错误: 身份验证失败";
+        if (acc.getCurrency() != currency) return "错误: 货币类型不匹配";
         if (acc.getBalance() < amount) return "错误: 余额不足";
+        
         acc.setBalance(acc.getBalance() - amount);
         return String.format("成功: 取款完成。新余额为: %.2f", acc.getBalance());
     }
