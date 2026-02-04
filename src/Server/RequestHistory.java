@@ -5,9 +5,10 @@ import java.util.Map;
 
 /**
  * 用于实现 At-most-once 语义，记录已处理的请求结果
+ * Used to implement At-most-once semantics, recording processed request results
  */
 public class RequestHistory {
-    // Key: "客户端IP:端口:RequestID"
+    // Key: "客户端IP:端口:RequestID" / "ClientIP:Port:RequestID"
     private final Map<String, byte[]> history = new HashMap<>();
 
     public void saveResponse(String clientInfo, int requestId, byte[] response) {

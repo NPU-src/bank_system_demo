@@ -13,13 +13,14 @@ public class ServerMain {
     private final RequestHistory history;
     private final CallbackManager callbackManager;
     private final boolean atMostOnce;
-    private static final double LOSS_RATE = 0.3; // [模拟丢包] 30% 丢包率
+    private static final double LOSS_RATE = 0.3; // [模拟丢包] 30% 丢包率 / [Simulated Packet Loss] 30% Loss Rate
 
     public ServerMain(int port, boolean atMostOnce) throws Exception {
         try {
             this.socket = new DatagramSocket(port);
         } catch (java.net.BindException e) {
             System.err.println("错误: 端口 " + port + " 已被占用。请检查是否有其他服务器实例正在运行。");
+            System.err.println("Error: Port " + port + " is already in use. Please check if another server instance is running.");
             throw e;
         }
         this.store = new BankStore();
@@ -30,7 +31,9 @@ public class ServerMain {
 
     public void start() throws Exception {
         System.out.println("服务器已启动，监听端口: " + socket.getLocalPort());
+        System.out.println("Server started, listening on port: " + socket.getLocalPort());
         System.out.println("当前调用语义: " + (atMostOnce ? "At-Most-Once" : "At-Least-Once"));
+        System.out.println("Current Invocation Semantics: " + (atMostOnce ? "At-Most-Once" : "At-Least-Once"));
         byte[] receiveBuf = new byte[2048];
 
         while (true) {
@@ -39,6 +42,7 @@ public class ServerMain {
                 socket.receive(requestPacket);
 
                 // 1. 手动解析 Header (RequestID, OpCode)
+                // 1. Manually parse Header (RequestID, OpCode)
                 if (requestPacket.getLength() < 8) {
                     System.err.println("收到非法短包，长度: " + requestPacket.getLength());
                     continue;
@@ -48,19 +52,22 @@ public class ServerMain {
                 String clientKey = requestPacket.getAddress().getHostAddress() + ":" + requestPacket.getPort();
 
                 // 2. 打印收到的请求
+                // 2. Print received request
                 System.out.println("[Request] From: " + clientKey + " ID: " + reqId + " OpCode: " + opCode);
 
                 // 3. At-most-once 逻辑：检查历史
+                // 3. At-most-once logic: Check history
                 if (atMostOnce) {
                     byte[] cached = history.getResponse(clientKey, reqId);
                     if (cached != null) {
-                        System.out.println("   (重复请求，发送缓存结果)");
+                        System.out.println("   (重复请求，发送缓存结果) / (Duplicate request, sending cached response)");
                         socket.send(new DatagramPacket(cached, cached.length, requestPacket.getAddress(), requestPacket.getPort()));
                         continue;
                     }
                 }
 
                 // 4. 执行业务逻辑
+                // 4. Execute business logic
                 String responseStr = "";
                 boolean isUpdate = false;
 
@@ -69,7 +76,7 @@ public class ServerMain {
                 } else {
                     OperationType op = OperationType.fromInt(opCode);
                     if (op == null) {
-                        responseStr = "错误: 未知操作";
+                        responseStr = "错误: 未知操作 / Error: Unknown Operation";
                     } else {
                         try {
                             switch (op) {
@@ -82,7 +89,7 @@ public class ServerMain {
                                     offset += 4;
                                     double balance = Marshaller.unmarshalDouble(receiveBuf, offset);
                                     int accNum = store.openAccount(name, password, CurrencyType.fromInt(currencyIdx), balance);
-                                    responseStr = "成功: 开户完成。账号为: " + accNum;
+                                    responseStr = "成功: 开户完成。账号为: " + accNum + " / Success: Account created. Account No: " + accNum;
                                     isUpdate = true;
                                     break;
                                 }
@@ -126,7 +133,7 @@ public class ServerMain {
                                 case MONITOR_UPDATES: {
                                     int interval = Marshaller.unmarshalInt(receiveBuf, 8);
                                     callbackManager.register(requestPacket.getAddress(), requestPacket.getPort(), interval);
-                                    responseStr = "成功: 已注册监控，时长 " + interval + " 秒";
+                                    responseStr = "成功: 已注册监控，时长 " + interval + " 秒 / Success: Monitor registered for " + interval + " seconds";
                                     break;
                                 }
                                 case GET_BALANCE: {
@@ -147,22 +154,24 @@ public class ServerMain {
                                     break;
                                 }
                                 default:
-                                    responseStr = "错误: 尚未实现的业务逻辑";
+                                    responseStr = "错误: 尚未实现的业务逻辑 / Error: Business logic not implemented";
                             }
                         } catch (Exception e) {
-                            responseStr = "错误: 解析业务失败 - " + e.getMessage();
+                            responseStr = "错误: 解析业务失败 - " + e.getMessage() + " / Error: Failed to parse request";
                         }
                     }
                 }
 
                 // 5. 回调通知
+                // 5. Callback Notification
                 if (isUpdate) {
-                    callbackManager.notifyUpdate("[系统更新] " + responseStr, socket);
+                    callbackManager.notifyUpdate("[系统更新] " + responseStr + " / [System Update]", socket);
                 }
 
                 // 6. 构造响应包: [RequestID (4字节)] + [ResponseString (封送)]
+                // 6. Construct response packet: [RequestID (4B)] + [ResponseString (Marshalled)]
                 byte[] responseBytes = new byte[2048];
-                Marshaller.marshalInt(reqId, responseBytes, 0); // 必须带上请求ID
+                Marshaller.marshalInt(reqId, responseBytes, 0); // 必须带上请求ID / Must include RequestID
                 int strLen = Marshaller.marshalString(responseStr, responseBytes, 4);
                 int totalLen = 4 + strLen;
                 
@@ -172,8 +181,9 @@ public class ServerMain {
                 if (atMostOnce) history.saveResponse(clientKey, reqId, actualResponse);
 
                 // [模拟丢包] 随机决定是否真正发送回复
+                // [Simulated Packet Loss] Randomly decide whether to send response
                 if (Math.random() < LOSS_RATE) {
-                    System.out.println("   [模拟丢包] 响应包已在服务器被丢弃 (ReqID:" + reqId + ")");
+                    System.out.println("   [模拟丢包] 响应包已在服务器被丢弃 (ReqID:" + reqId + ") / [Packet Loss] Response dropped at server");
                 } else {
                     socket.send(new DatagramPacket(actualResponse, actualResponse.length, requestPacket.getAddress(), requestPacket.getPort()));
                     System.out.println("[Reply] Sent to " + clientKey + " ID: " + reqId + ": " + responseStr);

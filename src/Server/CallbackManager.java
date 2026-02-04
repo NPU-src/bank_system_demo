@@ -19,17 +19,17 @@ public class CallbackManager {
         MonitorClient mc = new MonitorClient();
         mc.address = addr;
         mc.port = port;
-        mc.expiryTime = System.currentTimeMillis() + (intervalSec * 1000L); // 租约时间
+        mc.expiryTime = System.currentTimeMillis() + (intervalSec * 1000L); // 租约时间 / Lease time
         clients.add(mc);
     }
 
     public synchronized void notifyUpdate(String updateInfo, DatagramSocket socket) {
         long now = System.currentTimeMillis();
-        clients.removeIf(client -> now > client.expiryTime); // 自动移除过期记录
+        clients.removeIf(client -> now > client.expiryTime); // 自动移除过期记录 / Automatically remove expired records
 
         for (MonitorClient client : clients) {
             try {
-                byte[] data = updateInfo.getBytes(); // 发送回调消息 [cite: 47]
+                byte[] data = updateInfo.getBytes(); // 发送回调消息 / Send callback message
                 socket.send(new DatagramPacket(data, data.length, client.address, client.port));
             } catch (Exception e) { e.printStackTrace(); }
         }
