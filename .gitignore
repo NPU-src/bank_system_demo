@@ -11,3 +11,8 @@ out/
 
 # OS files
 .DS_Store
+
+# Logs and reports
+REPORT.md
+REPORT.**
+
